@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Utils.h"
+
 namespace audio_utils
 {
 
@@ -231,8 +233,8 @@ namespace audio_utils
 		{
 			mFactorUp = factorUp;
 			mFactorDown = factorDown;
-			mFactorUp = Cqt::Clip<FloatType>(mFactorUp, 0., 0.9999999999);
-			mFactorDown = Cqt::Clip<FloatType>(mFactorDown, 0., 0.9999999999);
+			mFactorUp = Clip<FloatType>(mFactorUp, 0., 0.9999999999);
+			mFactorDown = Clip<FloatType>(mFactorDown, 0., 0.9999999999);
 		};
 		inline FloatType getCurrentValue() { return mCurrentValue; };
 

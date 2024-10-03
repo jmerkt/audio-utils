@@ -31,6 +31,7 @@ namespace audio_utils
 		void pullBlockAdd(T *const data, const int blockSize);
 		T pullDelaySample(const int delay);
 		void pullDelayBlock(T *const data, const int delay, const int blockSize);
+		void pullDelayBlockInterpolating(T *const data, const double delay, const int blockSize);
 		void modulateDelayBlock(const T *const data, const int delay, const int blockSize);
 		void modulateDelayBlockDouble(const double *const data, const int delay, const int blockSize);
 		inline size_t nextPowOfTwo(size_t size) { return std::pow(2, std::ceil(std::log(size) / std::log(2))); };
@@ -99,6 +100,42 @@ namespace audio_utils
 			data[i] = mBuffer[readPointer];
 			readPointer += 1;
 			readPointer = readPointer & mBufferSizeMinOne;
+		}
+	}
+
+	template <typename T>
+	inline void CircularBuffer<T>::pullDelayBlockInterpolating(T *const data, const double delay, const int blockSize)
+	{
+		int delayLower = static_cast<int>(std::floor(delay));
+		int delayHigher = delayLower + 1;
+
+		int positionLower = (static_cast<int>(mWritePointer) - delayLower);
+		int positionHigher = (static_cast<int>(mWritePointer) - delayHigher);
+		if (positionLower < 0)
+		{
+			positionLower += mBufferSize;
+		}
+		if (positionHigher < 0)
+		{
+			positionHigher += mBufferSize;
+		}
+
+		const double frac = delay - static_cast<double>(delayLower);
+		const double oneMinFrac = (1. - frac);
+
+		size_t readPointerLower = static_cast<size_t>(positionLower);
+		size_t readPointerHigher = static_cast<size_t>(positionHigher);
+		for (int i = 0; i < blockSize; i++)
+		{
+			const T sampleLower = mBuffer[readPointerLower];
+			const T sampleHigher = mBuffer[readPointerHigher];
+
+			data[i] = sampleLower * oneMinFrac + sampleHigher * frac;
+
+			readPointerLower += 1;
+			readPointerLower = readPointerLower & mBufferSizeMinOne;
+			readPointerHigher += 1;
+			readPointerHigher = readPointerHigher & mBufferSizeMinOne;
 		}
 	}
 

@@ -21,7 +21,7 @@ using namespace std::complex_literals;
 namespace audio_utils
 {
 
-    template <size_t WavetableSize>
+    template <std::size_t WavetableSize>
     class StaticCplxWavetable
     {
     public:
@@ -35,14 +35,14 @@ namespace audio_utils
         double cosine_wavetable_[WavetableSize];
     };
 
-    template <size_t WavetableSize>
+    template <std::size_t WavetableSize>
     StaticCplxWavetable<WavetableSize>::StaticCplxWavetable()
     {
         if (WavetableSize > 0)
         {
             const double phase_increment = audio_utils::two_pi<double>() / static_cast<double>(WavetableSize);
             double phase = 0.;
-            for (size_t i = 0u; i < WavetableSize; i++)
+            for (std::size_t i = 0u; i < WavetableSize; i++)
             {
                 sine_wavetable_[i] = std::sin(phase);
                 cosine_wavetable_[i] = std::cos(phase);
@@ -51,7 +51,7 @@ namespace audio_utils
         }
     }
 
-    template <size_t WavetableSize>
+    template <std::size_t WavetableSize>
     class CplxWavetableOscillator
     {
     public:
@@ -74,7 +74,7 @@ namespace audio_utils
         static constexpr std::size_t WAVETABLE_SIZE_MINUS_ONE{WavetableSize - 1};
     };
 
-    template <size_t WavetableSize>
+    template <std::size_t WavetableSize>
     inline void CplxWavetableOscillator<WavetableSize>::init(const double sample_rate,
                                                              StaticCplxWavetable<WavetableSize> *static_wavetable)
     {
@@ -84,26 +84,26 @@ namespace audio_utils
         phase_ = 0.;
     }
 
-    template <size_t WavetableSize>
+    template <std::size_t WavetableSize>
     inline void CplxWavetableOscillator<WavetableSize>::set_frequency(const double frequency)
     {
         frequency_ = frequency;
         update_increment();
     }
 
-    template <size_t WavetableSize>
+    template <std::size_t WavetableSize>
     inline void CplxWavetableOscillator<WavetableSize>::update_increment()
     {
         phase_increment_ = frequency_ * static_cast<double>(WavetableSize) / sample_rate_;
     }
 
-    template <size_t WavetableSize>
+    template <std::size_t WavetableSize>
     inline std::complex<double> CplxWavetableOscillator<WavetableSize>::generate_sample()
     {
         return interpolate_wavetable();
     }
 
-    template <size_t WavetableSize>
+    template <std::size_t WavetableSize>
     inline void CplxWavetableOscillator<WavetableSize>::generate_block(std::complex<double> *const data,
                                                                        const int block_size)
     {
@@ -113,7 +113,7 @@ namespace audio_utils
         }
     }
 
-    template <size_t WavetableSize>
+    template <std::size_t WavetableSize>
     inline std::complex<double> CplxWavetableOscillator<WavetableSize>::interpolate_wavetable()
     {
         // Linear interpolation

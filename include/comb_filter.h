@@ -12,6 +12,7 @@
 #pragma once
 
 #include <cmath>
+#include <cstddef>
 
 #include "circular_buffer.h"
 #include "utils.h"
@@ -117,9 +118,9 @@ namespace audio_utils
 
     void CombFilter::ensure_buffer_size()
     {
-        if ((static_cast<size_t>(delay_) + 1u) > delay_line_.get_buffer_size())
+        if ((static_cast<std::size_t>(delay_) + 1u) > delay_line_.get_buffer_size())
         {
-            delay_line_.change_size(static_cast<size_t>(delay_) + 1u);
+            delay_line_.change_size(static_cast<std::size_t>(delay_) + 1u);
         }
     }
 

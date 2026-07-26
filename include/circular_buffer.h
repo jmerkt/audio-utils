@@ -11,6 +11,7 @@
 
 #pragma once
 #include <cmath>
+#include <cstddef>
 #include <vector>
 
 namespace audio_utils
@@ -20,10 +21,10 @@ namespace audio_utils
     class CircularBuffer
     {
     public:
-        CircularBuffer(size_t buffer_size = 128) { change_size(buffer_size); };
+        CircularBuffer(std::size_t buffer_size = 128) { change_size(buffer_size); };
         ~CircularBuffer() = default;
-        void change_size(size_t buffer_size);
-        size_t get_buffer_size() { return buffer_size_; };
+        void change_size(std::size_t buffer_size);
+        std::size_t get_buffer_size() { return buffer_size_; };
         void push_sample(const T value);
         void push_block(const T *const data, const int block_size);
         T pull_sample();
@@ -34,20 +35,23 @@ namespace audio_utils
         void pull_delay_block_interpolating(T *const data, const double delay, const int block_size);
         void modulate_delay_block(const T *const data, const int delay, const int block_size);
         void modulate_delay_block_double(const double *const data, const int delay, const int block_size);
-        inline size_t next_power_of_two(size_t size) { return std::pow(2, std::ceil(std::log(size) / std::log(2))); };
-        size_t get_write_read_distance();
+        inline std::size_t next_power_of_two(std::size_t size)
+        {
+            return std::pow(2, std::ceil(std::log(size) / std::log(2)));
+        };
+        std::size_t get_write_read_distance();
         inline void reset_read_pointer() { read_position_ = write_position_; };
 
     protected:
         std::vector<T> buffer_;
-        size_t buffer_size_{0};
-        size_t buffer_size_minus_one_{0};
-        size_t write_position_{0};
-        size_t read_position_{0};
+        std::size_t buffer_size_{0};
+        std::size_t buffer_size_minus_one_{0};
+        std::size_t write_position_{0};
+        std::size_t read_position_{0};
     };
 
     template <typename T>
-    inline void CircularBuffer<T>::change_size(size_t buffer_size)
+    inline void CircularBuffer<T>::change_size(std::size_t buffer_size)
     {
         buffer_size_ = next_power_of_two(buffer_size);
         buffer_size_minus_one_ = buffer_size_ - 1;
@@ -94,7 +98,7 @@ namespace audio_utils
         {
             position += buffer_size_;
         }
-        size_t read_position = static_cast<size_t>(position);
+        std::size_t read_position = static_cast<std::size_t>(position);
         for (int i = 0; i < block_size; i++)
         {
             data[i] = buffer_[read_position];
@@ -124,8 +128,8 @@ namespace audio_utils
         const double fraction = delay - static_cast<double>(lower_delay);
         const double one_minus_fraction = (1. - fraction);
 
-        size_t lower_read_position = static_cast<size_t>(lower_position);
-        size_t upper_read_position = static_cast<size_t>(upper_position);
+        std::size_t lower_read_position = static_cast<std::size_t>(lower_position);
+        std::size_t upper_read_position = static_cast<std::size_t>(upper_position);
         for (int i = 0; i < block_size; i++)
         {
             const T lower_sample = buffer_[lower_read_position];
@@ -148,7 +152,7 @@ namespace audio_utils
         {
             position += buffer_size_;
         }
-        size_t read_position = static_cast<size_t>(position);
+        std::size_t read_position = static_cast<std::size_t>(position);
         for (int i = 0; i < block_size; i++)
         {
             buffer_[read_position] *= data[i];
@@ -166,7 +170,7 @@ namespace audio_utils
         {
             position += buffer_size_;
         }
-        size_t read_position = static_cast<size_t>(position);
+        std::size_t read_position = static_cast<std::size_t>(position);
         for (int i = 0; i < block_size; i++)
         {
             buffer_[read_position] *= data[i];
@@ -206,7 +210,7 @@ namespace audio_utils
     }
 
     template <typename T>
-    inline size_t CircularBuffer<T>::get_write_read_distance()
+    inline std::size_t CircularBuffer<T>::get_write_read_distance()
     {
         return write_position_ >= read_position_ ? write_position_ - read_position_
                                                  : buffer_size_ - read_position_ + write_position_;

@@ -11,6 +11,9 @@
 
 #pragma once
 
+#include <cmath>
+#include <type_traits>
+
 #include "utils.h"
 
 namespace audio_utils
@@ -23,73 +26,74 @@ namespace audio_utils
         SmoothedFloat() = default;
         ~SmoothedFloat() = default;
 
-        inline void init(FloatType samplerateHz) noexcept
+        inline void init(FloatType sample_rate) noexcept
         {
-            mSampleRate = samplerateHz;
-            setSmoothingTime(mSmoothingTimeMs);
+            sample_rate_ = sample_rate;
+            set_smoothing_time(smoothing_time_ms_);
         };
-        inline void setTargetValue(FloatType newTargetValue) noexcept
+        inline void set_target_value(FloatType target_value) noexcept
         {
-            mTargetValue = newTargetValue;
-            mCountdown = mSmoothingTimeSamples;
-            mSmoothingStep = (mTargetValue - mCurrentValue) * mOneDivSmoothingTimeSamples;
+            target_value_ = target_value;
+            countdown_ = smoothing_time_samples_;
+            smoothing_step_ = (target_value_ - current_value_) * inverse_smoothing_time_samples_;
         };
-        inline FloatType getNextValue() noexcept
+        inline FloatType get_next_value() noexcept
         {
-            if (!isSmoothing())
+            if (!is_smoothing())
             {
-                return mTargetValue;
+                return target_value_;
             };
-            --mCountdown;
-            if (isSmoothing())
+            --countdown_;
+            if (is_smoothing())
             {
-                mCurrentValue += mSmoothingStep;
+                current_value_ += smoothing_step_;
             }
             else
             {
-                return mTargetValue;
+                return target_value_;
             }
-            return mCurrentValue;
+            return current_value_;
         };
-        inline void getNextBlock(FloatType *const data, const int blockSize) noexcept
+        inline void get_next_block(FloatType *const data, const int block_size) noexcept
         {
-            for (int i = 0; i < blockSize; i++)
+            for (int i = 0; i < block_size; i++)
             {
-                data[i] = getNextValue();
+                data[i] = get_next_value();
             }
         }
-        inline bool isSmoothing() noexcept { return mCountdown > 0; };
-        inline void setSmoothingTime(FloatType timeMs) noexcept
+        inline bool is_smoothing() noexcept { return countdown_ > 0; };
+        inline void set_smoothing_time(FloatType time_ms) noexcept
         {
-            mSmoothingTimeMs = timeMs;
-            mSmoothingTimeSamples = static_cast<int>(mSmoothingTimeMs * mOneDivThousand * mSampleRate);
-            mOneDivSmoothingTimeSamples = static_cast<FloatType>(1.) / static_cast<FloatType>(mSmoothingTimeSamples);
+            smoothing_time_ms_ = time_ms;
+            smoothing_time_samples_ = static_cast<int>(smoothing_time_ms_ * one_div_thousand_ * sample_rate_);
+            inverse_smoothing_time_samples_ =
+                static_cast<FloatType>(1.) / static_cast<FloatType>(smoothing_time_samples_);
         };
-        inline FloatType getCurrentValue() { return mCurrentValue; };
+        inline FloatType get_current_value() { return current_value_; };
 
 #ifdef INCLUDE_PYTHON_BINDING
-        pybind11::array_t<double> Python_getNextBlock(const int blockSize)
+        pybind11::array_t<double> python_get_next_block(const int block_size)
         {
-            auto result = pybind11::array_t<double>(blockSize);
-            pybind11::buffer_info buf = result.request();
-            double *ptr = static_cast<double *>(buf.ptr);
-            getNextBlock(ptr, blockSize);
+            auto result = pybind11::array_t<double>(block_size);
+            pybind11::buffer_info buffer_info = result.request();
+            double *output_data = static_cast<double *>(buffer_info.ptr);
+            get_next_block(output_data, block_size);
             return result;
         };
 #endif
     private:
-        const FloatType mOneDivThousand = static_cast<FloatType>(1. / 1000.);
-        FloatType mSampleRate{48000.};
-        int mCountdown{0};
-        int mSmoothingTimeSamples{0};
-        FloatType mOneDivSmoothingTimeSamples{0.};
-        FloatType mTargetValue{0.};
-        FloatType mCurrentValue{0.};
-        FloatType mSmoothingTimeMs{20.};
-        FloatType mSmoothingStep{0.};
+        const FloatType one_div_thousand_ = static_cast<FloatType>(1. / 1000.);
+        FloatType sample_rate_{48000.};
+        int countdown_{0};
+        int smoothing_time_samples_{0};
+        FloatType inverse_smoothing_time_samples_{0.};
+        FloatType target_value_{0.};
+        FloatType current_value_{0.};
+        FloatType smoothing_time_ms_{20.};
+        FloatType smoothing_step_{0.};
     };
 
-    namespace SmoothingTypes
+    namespace smoothing_types
     {
         struct Linear
         {
@@ -106,106 +110,106 @@ namespace audio_utils
         SmoothedFloatUpDown() = default;
         ~SmoothedFloatUpDown() = default;
 
-        inline void init(FloatType sampleRateHz) noexcept
+        inline void init(FloatType sample_rate) noexcept
         {
-            mSampleRate = sampleRateHz;
-            setSmoothingTime(mSmoothingTimeMsUp, mSmoothingTimeMsDown);
+            sample_rate_ = sample_rate;
+            set_smoothing_time(smoothing_time_ms_up_, smoothing_time_ms_down_);
         };
-        inline void setTargetValue(FloatType newTargetValue) noexcept
+        inline void set_target_value(FloatType target_value) noexcept
         {
-            if (newTargetValue != mTargetValue)
+            if (target_value != target_value_)
             {
-                if (newTargetValue > mCurrentValue)
+                if (target_value > current_value_)
                 {
-                    mTargetValue = newTargetValue;
-                    mCountdown = mSmoothingTimeSamplesUp;
-                    if constexpr (std::is_same_v<SmoothingType, SmoothingTypes::Linear>)
+                    target_value_ = target_value;
+                    countdown_ = smoothing_time_samples_up_;
+                    if constexpr (std::is_same_v<SmoothingType, smoothing_types::Linear>)
                     {
-                        mSmoothingStep = (mTargetValue - mCurrentValue) * mOneDivSmoothingTimeSamplesUp;
+                        smoothing_step_ = (target_value_ - current_value_) * inverse_smoothing_time_samples_up_;
                     }
                     else
                     {
-                        mSmoothingStep =
-                            std::exp((std::log(std::abs(mTargetValue)) - std::log(std::abs(mCurrentValue))) *
-                                     mOneDivSmoothingTimeSamplesUp);
+                        smoothing_step_ =
+                            std::exp((std::log(std::abs(target_value_)) - std::log(std::abs(current_value_))) *
+                                     inverse_smoothing_time_samples_up_);
                     }
                 }
                 else
                 {
-                    mTargetValue = newTargetValue;
-                    mCountdown = mSmoothingTimeSamplesDown;
-                    if constexpr (std::is_same_v<SmoothingType, SmoothingTypes::Linear>)
+                    target_value_ = target_value;
+                    countdown_ = smoothing_time_samples_down_;
+                    if constexpr (std::is_same_v<SmoothingType, smoothing_types::Linear>)
                     {
-                        mSmoothingStep = (mTargetValue - mCurrentValue) * mOneDivSmoothingTimeSamplesDown;
+                        smoothing_step_ = (target_value_ - current_value_) * inverse_smoothing_time_samples_down_;
                     }
                     else
                     {
-                        mSmoothingStep =
-                            std::exp((std::log(std::abs(mTargetValue)) - std::log(std::abs(mCurrentValue))) *
-                                     mOneDivSmoothingTimeSamplesDown);
+                        smoothing_step_ =
+                            std::exp((std::log(std::abs(target_value_)) - std::log(std::abs(current_value_))) *
+                                     inverse_smoothing_time_samples_down_);
                     }
                 }
             }
         };
-        inline FloatType getNextValue() noexcept
+        inline FloatType get_next_value() noexcept
         {
-            if (!isSmoothing())
+            if (!is_smoothing())
             {
-                return mTargetValue;
+                return target_value_;
             };
-            --mCountdown;
-            if (isSmoothing())
+            --countdown_;
+            if (is_smoothing())
             {
-                if constexpr (std::is_same_v<SmoothingType, SmoothingTypes::Linear>)
+                if constexpr (std::is_same_v<SmoothingType, smoothing_types::Linear>)
                 {
-                    mCurrentValue += mSmoothingStep;
+                    current_value_ += smoothing_step_;
                 }
                 else
                 {
-                    mCurrentValue *= mSmoothingStep;
+                    current_value_ *= smoothing_step_;
                 }
             }
             else
             {
-                return mTargetValue;
+                return target_value_;
             }
-            return mCurrentValue;
+            return current_value_;
         };
-        inline void getNextBlock(FloatType *const data, const int blockSize) noexcept
+        inline void get_next_block(FloatType *const data, const int block_size) noexcept
         {
-            for (int i = 0; i < blockSize; i++)
+            for (int i = 0; i < block_size; i++)
             {
-                data[i] = getNextValue();
+                data[i] = get_next_value();
             }
         }
-        inline bool isSmoothing() noexcept { return mCountdown > 0; };
-        inline void setSmoothingTime(FloatType timeMsUp, FloatType timeMsDown) noexcept
+        inline bool is_smoothing() noexcept { return countdown_ > 0; };
+        inline void set_smoothing_time(FloatType time_ms_up, FloatType time_ms_down) noexcept
         {
-            mSmoothingTimeMsUp = timeMsUp;
-            mSmoothingTimeSamplesUp = static_cast<int>(mSmoothingTimeMsUp * mOneDivThousand * mSampleRate);
-            mOneDivSmoothingTimeSamplesUp =
-                static_cast<FloatType>(1.) / static_cast<FloatType>(mSmoothingTimeSamplesUp);
+            smoothing_time_ms_up_ = time_ms_up;
+            smoothing_time_samples_up_ = static_cast<int>(smoothing_time_ms_up_ * one_div_thousand_ * sample_rate_);
+            inverse_smoothing_time_samples_up_ =
+                static_cast<FloatType>(1.) / static_cast<FloatType>(smoothing_time_samples_up_);
 
-            mSmoothingTimeMsDown = timeMsDown;
-            mSmoothingTimeSamplesDown = static_cast<int>(mSmoothingTimeMsDown * mOneDivThousand * mSampleRate);
-            mOneDivSmoothingTimeSamplesDown =
-                static_cast<FloatType>(1.) / static_cast<FloatType>(mSmoothingTimeSamplesDown);
+            smoothing_time_ms_down_ = time_ms_down;
+            smoothing_time_samples_down_ = static_cast<int>(smoothing_time_ms_down_ * one_div_thousand_ * sample_rate_);
+            inverse_smoothing_time_samples_down_ =
+                static_cast<FloatType>(1.) / static_cast<FloatType>(smoothing_time_samples_down_);
         };
-        inline FloatType getCurrentValue() { return mCurrentValue; };
+        inline FloatType get_current_value() { return current_value_; };
 
     private:
-        const FloatType mOneDivThousand = static_cast<FloatType>(1. / 1000.);
-        FloatType mSampleRate{48000.};
-        int mCountdown{0};
-        FloatType mTargetValue{0.};
-        FloatType mCurrentValue{0.};
-        FloatType mSmoothingStep{0.};
-        int mSmoothingTimeSamplesUp{0};
-        int mSmoothingTimeSamplesDown{0};
-        FloatType mSmoothingTimeMsUp{20.};
-        FloatType mSmoothingTimeMsDown{20.};
-        FloatType mOneDivSmoothingTimeSamplesUp{0.};
-        FloatType mOneDivSmoothingTimeSamplesDown{0.};
+        const FloatType one_div_thousand_ = static_cast<FloatType>(1. / 1000.);
+        FloatType sample_rate_{48000.};
+        int countdown_{0};
+        FloatType target_value_{0.};
+        FloatType current_value_{0.};
+        FloatType smoothing_step_{0.};
+        int smoothing_time_samples_up_{0};
+        int smoothing_time_samples_down_{0};
+        FloatType smoothing_time_ms_up_{20.};
+        FloatType smoothing_time_ms_down_{20.};
+        FloatType inverse_smoothing_time_samples_up_{0.};
+        FloatType inverse_smoothing_time_samples_down_{0.};
     };
 
     template <typename FloatType>
@@ -215,50 +219,52 @@ namespace audio_utils
         OnePoleUpDown() = default;
         ~OnePoleUpDown() = default;
 
-        inline void init(FloatType sampleRateHz) noexcept { mSampleRate = sampleRateHz; };
-        inline void setTargetValue(FloatType newTargetValue) noexcept
+        inline void init(FloatType sample_rate) noexcept { sample_rate_ = sample_rate; };
+        inline void set_target_value(FloatType target_value) noexcept
         {
-            if (newTargetValue > mTargetValue)
-                mSmoothingUp = true;
+            if (target_value > target_value_)
+                smoothing_up_ = true;
             else
-                mSmoothingUp = false;
-            mTargetValue = newTargetValue;
+                smoothing_up_ = false;
+            target_value_ = target_value;
         };
-        inline FloatType getNextValue() noexcept
+        inline FloatType get_next_value() noexcept
         {
-            if (mSmoothingUp)
+            if (smoothing_up_)
             {
-                mCurrentValue = mFactorUp * mTargetValue + (static_cast<FloatType>(1.) - mFactorUp) * mCurrentValue;
+                current_value_ =
+                    factor_up_ * target_value_ + (static_cast<FloatType>(1.) - factor_up_) * current_value_;
             }
             else
             {
-                mCurrentValue = mFactorDown * mTargetValue + (static_cast<FloatType>(1.) - mFactorDown) * mCurrentValue;
+                current_value_ =
+                    factor_down_ * target_value_ + (static_cast<FloatType>(1.) - factor_down_) * current_value_;
             }
-            return mCurrentValue;
+            return current_value_;
         };
-        inline void getNextBlock(FloatType *const data, const int blockSize) noexcept
+        inline void get_next_block(FloatType *const data, const int block_size) noexcept
         {
-            for (int i = 0; i < blockSize; i++)
+            for (int i = 0; i < block_size; i++)
             {
-                data[i] = getNextValue();
+                data[i] = get_next_value();
             }
         }
-        inline void setSmoothingFactors(FloatType factorUp, FloatType factorDown) noexcept
+        inline void set_smoothing_factors(FloatType factor_up, FloatType factor_down) noexcept
         {
-            mFactorUp = factorUp;
-            mFactorDown = factorDown;
-            mFactorUp = Clip<FloatType>(mFactorUp, 0., 0.9999999999);
-            mFactorDown = Clip<FloatType>(mFactorDown, 0., 0.9999999999);
+            factor_up_ = factor_up;
+            factor_down_ = factor_down;
+            factor_up_ = clip<FloatType>(factor_up_, 0., 0.9999999999);
+            factor_down_ = clip<FloatType>(factor_down_, 0., 0.9999999999);
         };
-        inline FloatType getCurrentValue() { return mCurrentValue; };
+        inline FloatType get_current_value() { return current_value_; };
 
     private:
-        FloatType mSampleRate{48000.};
-        FloatType mTargetValue{0.};
-        FloatType mCurrentValue{0.};
-        FloatType mFactorUp{0.};
-        FloatType mFactorDown{0.};
-        bool mSmoothingUp{true};
+        FloatType sample_rate_{48000.};
+        FloatType target_value_{0.};
+        FloatType current_value_{0.};
+        FloatType factor_up_{0.};
+        FloatType factor_down_{0.};
+        bool smoothing_up_{true};
     };
 
 }

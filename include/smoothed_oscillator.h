@@ -21,89 +21,92 @@ namespace audio_utils
     class SmoothedOscillator
     {
     public:
-        SmoothedOscillator(const double samplerate,
-                           const double freq,
+        SmoothedOscillator(const double sample_rate,
+                           const double frequency,
                            const double phase,
                            const double gain,
-                           const double smoothingTimeMs);
+                           const double smoothing_time_ms);
         ~SmoothedOscillator() = default;
 
-        void init(const double samplerate, const double smoothingTimeMs);
-        void setFrequency(const double freq) { mFrequency.setTargetValue(freq); };
-        void setGain(const double gain) { mGain.setTargetValue(gain); };
-        double getGain() { return mGain.getCurrentValue(); };
+        void init(const double sample_rate, const double smoothing_time_ms);
+        void set_frequency(const double frequency) { frequency_.set_target_value(frequency); };
+        void set_gain(const double gain) { gain_.set_target_value(gain); };
+        double get_gain() { return gain_.get_current_value(); };
 
-        double processSample();
-        void processBlock(double *const data, const int blockSize);
+        double process_sample();
+        void process_block(double *const data, const int block_size);
 
 #ifdef INCLUDE_PYTHON_BINDING
-        pybind11::array_t<double> Python_processBlock(const int blockSize)
+        pybind11::array_t<double> python_process_block(const int block_size)
         {
-            auto result = pybind11::array_t<double>(blockSize);
-            pybind11::buffer_info buf = result.request();
-            double *ptr = static_cast<double *>(buf.ptr);
-            processBlock(ptr, blockSize);
+            auto result = pybind11::array_t<double>(block_size);
+            pybind11::buffer_info buffer_info = result.request();
+            double *output_data = static_cast<double *>(buffer_info.ptr);
+            process_block(output_data, block_size);
             return result;
         };
 #endif
     private:
-        void calcPhaseIncr(const double freq);
+        void calculate_phase_increment(const double frequency);
 
-        double mSamplerate{48000.};
-        double mPhaseIncr{0.};
-        double mPhase{0.};
+        double sample_rate_{48000.};
+        double phase_increment_{0.};
+        double phase_{0.};
 
-        SmoothedFloat<double> mGain;
-        SmoothedFloat<double> mFrequency;
+        SmoothedFloat<double> gain_;
+        SmoothedFloat<double> frequency_;
     };
 
-    SmoothedOscillator::SmoothedOscillator(
-        const double samplerate, const double freq, const double phase, const double gain, const double smoothingTimeMs)
+    SmoothedOscillator::SmoothedOscillator(const double sample_rate,
+                                           const double frequency,
+                                           const double phase,
+                                           const double gain,
+                                           const double smoothing_time_ms)
     {
-        init(samplerate, smoothingTimeMs);
-        setFrequency(freq);
-        setGain(gain);
-        mPhase = phase;
+        init(sample_rate, smoothing_time_ms);
+        set_frequency(frequency);
+        set_gain(gain);
+        phase_ = phase;
     }
 
-    inline void SmoothedOscillator::init(const double samplerate, const double smoothingTimeMs)
+    inline void SmoothedOscillator::init(const double sample_rate, const double smoothing_time_ms)
     {
-        mSamplerate = samplerate;
-        mGain.init(samplerate);
-        mFrequency.init(samplerate);
-        mGain.setSmoothingTime(smoothingTimeMs);
-        mFrequency.setSmoothingTime(smoothingTimeMs);
+        sample_rate_ = sample_rate;
+        gain_.init(sample_rate);
+        frequency_.init(sample_rate);
+        gain_.set_smoothing_time(smoothing_time_ms);
+        frequency_.set_smoothing_time(smoothing_time_ms);
     }
 
-    inline double SmoothedOscillator::processSample()
+    inline double SmoothedOscillator::process_sample()
     {
-        const double sample = std::sin(mPhase) * mGain.getNextValue();
-        calcPhaseIncr(mFrequency.getNextValue());
-        mPhase += mPhaseIncr;
-        while (mPhase >= TwoPi<double>())
+        const double sample = std::sin(phase_) * gain_.get_next_value();
+        calculate_phase_increment(frequency_.get_next_value());
+        phase_ += phase_increment_;
+        while (phase_ >= two_pi<double>())
         {
-            mPhase -= TwoPi<double>();
+            phase_ -= two_pi<double>();
         }
         return sample;
     }
 
-    inline void SmoothedOscillator::processBlock(double *const data, const int blockSize)
+    inline void SmoothedOscillator::process_block(double *const data, const int block_size)
     {
-        for (int i = 0; i < blockSize; i++)
+        for (int i = 0; i < block_size; i++)
         {
-            data[i] = std::sin(mPhase) * mGain.getNextValue();
-            calcPhaseIncr(mFrequency.getNextValue());
-            mPhase += mPhaseIncr;
-            while (mPhase >= TwoPi<double>())
+            data[i] = std::sin(phase_) * gain_.get_next_value();
+            calculate_phase_increment(frequency_.get_next_value());
+            phase_ += phase_increment_;
+            while (phase_ >= two_pi<double>())
             {
-                mPhase -= TwoPi<double>();
+                phase_ -= two_pi<double>();
             }
         }
     }
 
-    inline void SmoothedOscillator::calcPhaseIncr(const double freq)
+    inline void SmoothedOscillator::calculate_phase_increment(const double frequency)
     {
-        mPhaseIncr = freq * TwoPi<double>() / mSamplerate;
+        phase_increment_ = frequency * two_pi<double>() / sample_rate_;
     }
 
 }

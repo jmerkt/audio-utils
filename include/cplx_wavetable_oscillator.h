@@ -11,8 +11,11 @@
 
 #pragma once
 
-#include "utils.h"
 #include <complex>
+#include <cstddef>
+
+#include "utils.h"
+
 using namespace std::complex_literals;
 
 namespace audio_utils
@@ -24,12 +27,12 @@ namespace audio_utils
     public:
         StaticCplxWavetable();
         ~StaticCplxWavetable() = default;
-        inline const double *const getSineWavetable() { return mSineWavetable; };
-        inline const double *const getCosineWavetable() { return mCosineWavetable; };
+        inline const double *const get_sine_wavetable() { return sine_wavetable_; };
+        inline const double *const get_cosine_wavetable() { return cosine_wavetable_; };
 
     private:
-        double mSineWavetable[WavetableSize];
-        double mCosineWavetable[WavetableSize];
+        double sine_wavetable_[WavetableSize];
+        double cosine_wavetable_[WavetableSize];
     };
 
     template <size_t WavetableSize>
@@ -37,13 +40,13 @@ namespace audio_utils
     {
         if (WavetableSize > 0)
         {
-            const double phaseIncr = Cqt::TwoPi<double>() / static_cast<double>(WavetableSize);
+            const double phase_increment = audio_utils::two_pi<double>() / static_cast<double>(WavetableSize);
             double phase = 0.;
             for (size_t i = 0u; i < WavetableSize; i++)
             {
-                mSineWavetable[i] = std::sin(phase);
-                mCosineWavetable[i] = std::cos(phase);
-                phase += phaseIncr;
+                sine_wavetable_[i] = std::sin(phase);
+                cosine_wavetable_[i] = std::cos(phase);
+                phase += phase_increment;
             }
         }
     }
@@ -54,79 +57,80 @@ namespace audio_utils
     public:
         CplxWavetableOscillator() = default;
         ~CplxWavetableOscillator() = default;
-        void init(const double samplerate, StaticCplxWavetable<WavetableSize> *staticWavetable);
-        void setFrequency(const double frequency);
+        void init(const double sample_rate, StaticCplxWavetable<WavetableSize> *static_wavetable);
+        void set_frequency(const double frequency);
 
-        std::complex<double> generateSample();
-        void generateBlock(std::complex<double> *const data, const int blockSize);
+        std::complex<double> generate_sample();
+        void generate_block(std::complex<double> *const data, const int block_size);
 
     private:
-        void updateIncrement();
-        std::complex<double> interpolateWavetable();
-        double mFrequency{440.0};
-        double mPhase{0.};
-        double mSampleRate{44100.};
-        double mPhaseIncrement{0.};
-        StaticCplxWavetable<WavetableSize> *mStaticWavetable;
-        const unsigned mWavetableSizeMinOne{WavetableSize - 1};
+        void update_increment();
+        std::complex<double> interpolate_wavetable();
+        double frequency_{440.0};
+        double phase_{0.};
+        double sample_rate_{44100.};
+        double phase_increment_{0.};
+        StaticCplxWavetable<WavetableSize> *static_wavetable_;
+        static constexpr std::size_t WAVETABLE_SIZE_MINUS_ONE{WavetableSize - 1};
     };
 
     template <size_t WavetableSize>
-    inline void CplxWavetableOscillator<WavetableSize>::init(const double samplerate,
-                                                             StaticCplxWavetable<WavetableSize> *staticWavetable)
+    inline void CplxWavetableOscillator<WavetableSize>::init(const double sample_rate,
+                                                             StaticCplxWavetable<WavetableSize> *static_wavetable)
     {
-        mSampleRate = samplerate;
-        mStaticWavetable = staticWavetable;
-        updateIncrement();
-        mPhase = 0.;
+        sample_rate_ = sample_rate;
+        static_wavetable_ = static_wavetable;
+        update_increment();
+        phase_ = 0.;
     }
 
     template <size_t WavetableSize>
-    inline void CplxWavetableOscillator<WavetableSize>::setFrequency(const double frequency)
+    inline void CplxWavetableOscillator<WavetableSize>::set_frequency(const double frequency)
     {
-        mFrequency = frequency;
-        updateIncrement();
+        frequency_ = frequency;
+        update_increment();
     }
 
     template <size_t WavetableSize>
-    inline void CplxWavetableOscillator<WavetableSize>::updateIncrement()
+    inline void CplxWavetableOscillator<WavetableSize>::update_increment()
     {
-        mPhaseIncrement = mFrequency * static_cast<double>(WavetableSize) / mSampleRate;
+        phase_increment_ = frequency_ * static_cast<double>(WavetableSize) / sample_rate_;
     }
 
     template <size_t WavetableSize>
-    inline std::complex<double> CplxWavetableOscillator<WavetableSize>::generateSample()
+    inline std::complex<double> CplxWavetableOscillator<WavetableSize>::generate_sample()
     {
-        return interpolateWavetable();
+        return interpolate_wavetable();
     }
 
     template <size_t WavetableSize>
-    inline void CplxWavetableOscillator<WavetableSize>::generateBlock(std::complex<double> *const data,
-                                                                      const int blockSize)
+    inline void CplxWavetableOscillator<WavetableSize>::generate_block(std::complex<double> *const data,
+                                                                       const int block_size)
     {
-        for (int i = 0; i < blockSize; i++)
+        for (int i = 0; i < block_size; i++)
         {
-            data[i] = interpolateWavetable();
+            data[i] = interpolate_wavetable();
         }
     }
 
     template <size_t WavetableSize>
-    inline std::complex<double> CplxWavetableOscillator<WavetableSize>::interpolateWavetable()
+    inline std::complex<double> CplxWavetableOscillator<WavetableSize>::interpolate_wavetable()
     {
         // Linear interpolation
-        const double idxLowDouble = std::floor(mPhase);
-        const unsigned idxLow = static_cast<unsigned>(idxLowDouble);
-        const unsigned idxHigh = idxLow + 1;
-        const double frac = mPhase - idxLowDouble;
-        const double OneMinFrac = (1. - frac);
+        const double lower_index_value = std::floor(phase_);
+        const unsigned lower_index = static_cast<unsigned>(lower_index_value);
+        const unsigned upper_index = lower_index + 1;
+        const double fraction = phase_ - lower_index_value;
+        const double one_minus_fraction = (1. - fraction);
         // Wrap around
-        mPhase += mPhaseIncrement;
-        mPhase = static_cast<double>(static_cast<unsigned>(mPhase) & mWavetableSizeMinOne) + frac;
+        phase_ += phase_increment_;
+        phase_ = static_cast<double>(static_cast<unsigned>(phase_) & WAVETABLE_SIZE_MINUS_ONE) + fraction;
         // Return
-        const double *const cosineWavetable = mStaticWavetable->getCosineWavetable();
-        const double *const sineWavetable = mStaticWavetable->getSineWavetable();
-        const std::complex<double> value = {cosineWavetable[idxLow] * OneMinFrac + cosineWavetable[idxHigh] * frac,
-                                            -(sineWavetable[idxLow] * OneMinFrac + sineWavetable[idxHigh] * frac)};
+        const double *const cosine_wavetable = static_wavetable_->get_cosine_wavetable();
+        const double *const sine_wavetable = static_wavetable_->get_sine_wavetable();
+        const std::complex<double> value = {
+            cosine_wavetable[lower_index] * one_minus_fraction + cosine_wavetable[upper_index] * fraction,
+            -(sine_wavetable[lower_index] * one_minus_fraction + sine_wavetable[upper_index] * fraction)};
         return value;
     }
 

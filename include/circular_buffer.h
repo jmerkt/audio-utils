@@ -20,195 +20,196 @@ namespace audio_utils
     class CircularBuffer
     {
     public:
-        CircularBuffer(size_t bufferSize = 128) { changeSize(bufferSize); };
+        CircularBuffer(size_t buffer_size = 128) { change_size(buffer_size); };
         ~CircularBuffer() = default;
-        void changeSize(size_t bufferSize);
-        size_t getBufferSize() { return mBufferSize; };
-        void pushSample(const T value);
-        void pushBlock(const T *const data, const int blockSize);
-        T pullSample();
-        void pullBlock(T *const data, const int blockSize);
-        void pullBlockAdd(T *const data, const int blockSize);
-        T pullDelaySample(const int delay);
-        void pullDelayBlock(T *const data, const int delay, const int blockSize);
-        void pullDelayBlockInterpolating(T *const data, const double delay, const int blockSize);
-        void modulateDelayBlock(const T *const data, const int delay, const int blockSize);
-        void modulateDelayBlockDouble(const double *const data, const int delay, const int blockSize);
-        inline size_t nextPowOfTwo(size_t size) { return std::pow(2, std::ceil(std::log(size) / std::log(2))); };
-        size_t getWriteReadDistance();
-        inline void resetReadPointer() { mReadPointer = mWritePointer; };
+        void change_size(size_t buffer_size);
+        size_t get_buffer_size() { return buffer_size_; };
+        void push_sample(const T value);
+        void push_block(const T *const data, const int block_size);
+        T pull_sample();
+        void pull_block(T *const data, const int block_size);
+        void pull_block_add(T *const data, const int block_size);
+        T pull_delay_sample(const int delay);
+        void pull_delay_block(T *const data, const int delay, const int block_size);
+        void pull_delay_block_interpolating(T *const data, const double delay, const int block_size);
+        void modulate_delay_block(const T *const data, const int delay, const int block_size);
+        void modulate_delay_block_double(const double *const data, const int delay, const int block_size);
+        inline size_t next_power_of_two(size_t size) { return std::pow(2, std::ceil(std::log(size) / std::log(2))); };
+        size_t get_write_read_distance();
+        inline void reset_read_pointer() { read_position_ = write_position_; };
 
     protected:
-        std::vector<T> mBuffer;
-        size_t mBufferSize{0};
-        size_t mBufferSizeMinOne{0};
-        size_t mWritePointer{0};
-        size_t mReadPointer{0};
+        std::vector<T> buffer_;
+        size_t buffer_size_{0};
+        size_t buffer_size_minus_one_{0};
+        size_t write_position_{0};
+        size_t read_position_{0};
     };
 
     template <typename T>
-    inline void CircularBuffer<T>::changeSize(size_t bufferSize)
+    inline void CircularBuffer<T>::change_size(size_t buffer_size)
     {
-        mBufferSize = nextPowOfTwo(bufferSize);
-        mBufferSizeMinOne = mBufferSize - 1;
-        mBuffer.resize(mBufferSize, static_cast<T>(0.));
-        mWritePointer = 0;
-        mReadPointer = 0;
+        buffer_size_ = next_power_of_two(buffer_size);
+        buffer_size_minus_one_ = buffer_size_ - 1;
+        buffer_.resize(buffer_size_, static_cast<T>(0.));
+        write_position_ = 0;
+        read_position_ = 0;
     }
 
     template <typename T>
-    inline void CircularBuffer<T>::pushSample(const T value)
+    inline void CircularBuffer<T>::push_sample(const T value)
     {
-        mWritePointer += 1;
-        mWritePointer = mWritePointer & mBufferSizeMinOne;
-        mBuffer[mWritePointer] = value;
+        write_position_ += 1;
+        write_position_ = write_position_ & buffer_size_minus_one_;
+        buffer_[write_position_] = value;
     }
 
     template <typename T>
-    inline void CircularBuffer<T>::pushBlock(const T *const data, const int blockSize)
+    inline void CircularBuffer<T>::push_block(const T *const data, const int block_size)
     {
-        for (int i = 0; i < blockSize; i++)
+        for (int i = 0; i < block_size; i++)
         {
-            mWritePointer += 1;
-            mWritePointer = mWritePointer & mBufferSizeMinOne;
-            mBuffer[mWritePointer] = data[i];
+            write_position_ += 1;
+            write_position_ = write_position_ & buffer_size_minus_one_;
+            buffer_[write_position_] = data[i];
         }
     }
 
     template <typename T>
-    inline T CircularBuffer<T>::pullDelaySample(const int delay)
+    inline T CircularBuffer<T>::pull_delay_sample(const int delay)
     {
-        int position = (static_cast<int>(mWritePointer) - delay);
+        int position = (static_cast<int>(write_position_) - delay);
         if (position < 0)
         {
-            position += mBufferSize;
+            position += buffer_size_;
         }
-        return mBuffer[position];
+        return buffer_[position];
     }
 
     template <typename T>
-    inline void CircularBuffer<T>::pullDelayBlock(T *const data, const int delay, const int blockSize)
+    inline void CircularBuffer<T>::pull_delay_block(T *const data, const int delay, const int block_size)
     {
-        int position = (static_cast<int>(mWritePointer) - delay);
+        int position = (static_cast<int>(write_position_) - delay);
         if (position < 0)
         {
-            position += mBufferSize;
+            position += buffer_size_;
         }
-        size_t readPointer = static_cast<size_t>(position);
-        for (int i = 0; i < blockSize; i++)
+        size_t read_position = static_cast<size_t>(position);
+        for (int i = 0; i < block_size; i++)
         {
-            data[i] = mBuffer[readPointer];
-            readPointer += 1;
-            readPointer = readPointer & mBufferSizeMinOne;
-        }
-    }
-
-    template <typename T>
-    inline void CircularBuffer<T>::pullDelayBlockInterpolating(T *const data, const double delay, const int blockSize)
-    {
-        int delayLower = static_cast<int>(std::floor(delay));
-        int delayHigher = delayLower + 1;
-
-        int positionLower = (static_cast<int>(mWritePointer) - delayLower);
-        int positionHigher = (static_cast<int>(mWritePointer) - delayHigher);
-        if (positionLower < 0)
-        {
-            positionLower += mBufferSize;
-        }
-        if (positionHigher < 0)
-        {
-            positionHigher += mBufferSize;
-        }
-
-        const double frac = delay - static_cast<double>(delayLower);
-        const double oneMinFrac = (1. - frac);
-
-        size_t readPointerLower = static_cast<size_t>(positionLower);
-        size_t readPointerHigher = static_cast<size_t>(positionHigher);
-        for (int i = 0; i < blockSize; i++)
-        {
-            const T sampleLower = mBuffer[readPointerLower];
-            const T sampleHigher = mBuffer[readPointerHigher];
-
-            data[i] = sampleLower * oneMinFrac + sampleHigher * frac;
-
-            readPointerLower += 1;
-            readPointerLower = readPointerLower & mBufferSizeMinOne;
-            readPointerHigher += 1;
-            readPointerHigher = readPointerHigher & mBufferSizeMinOne;
-        }
-    }
-
-    template <typename T>
-    inline void CircularBuffer<T>::modulateDelayBlock(const T *const data, const int delay, const int blockSize)
-    {
-        int position = (static_cast<int>(mWritePointer) - delay);
-        if (position < 0)
-        {
-            position += mBufferSize;
-        }
-        size_t readPointer = static_cast<size_t>(position);
-        for (int i = 0; i < blockSize; i++)
-        {
-            mBuffer[readPointer] *= data[i];
-            readPointer += 1;
-            readPointer = readPointer & mBufferSizeMinOne;
+            data[i] = buffer_[read_position];
+            read_position += 1;
+            read_position = read_position & buffer_size_minus_one_;
         }
     }
 
     template <typename T>
     inline void
-    CircularBuffer<T>::modulateDelayBlockDouble(const double *const data, const int delay, const int blockSize)
+    CircularBuffer<T>::pull_delay_block_interpolating(T *const data, const double delay, const int block_size)
     {
-        int position = (static_cast<int>(mWritePointer) - delay);
+        int lower_delay = static_cast<int>(std::floor(delay));
+        int upper_delay = lower_delay + 1;
+
+        int lower_position = (static_cast<int>(write_position_) - lower_delay);
+        int upper_position = (static_cast<int>(write_position_) - upper_delay);
+        if (lower_position < 0)
+        {
+            lower_position += buffer_size_;
+        }
+        if (upper_position < 0)
+        {
+            upper_position += buffer_size_;
+        }
+
+        const double fraction = delay - static_cast<double>(lower_delay);
+        const double one_minus_fraction = (1. - fraction);
+
+        size_t lower_read_position = static_cast<size_t>(lower_position);
+        size_t upper_read_position = static_cast<size_t>(upper_position);
+        for (int i = 0; i < block_size; i++)
+        {
+            const T lower_sample = buffer_[lower_read_position];
+            const T upper_sample = buffer_[upper_read_position];
+
+            data[i] = lower_sample * one_minus_fraction + upper_sample * fraction;
+
+            lower_read_position += 1;
+            lower_read_position = lower_read_position & buffer_size_minus_one_;
+            upper_read_position += 1;
+            upper_read_position = upper_read_position & buffer_size_minus_one_;
+        }
+    }
+
+    template <typename T>
+    inline void CircularBuffer<T>::modulate_delay_block(const T *const data, const int delay, const int block_size)
+    {
+        int position = (static_cast<int>(write_position_) - delay);
         if (position < 0)
         {
-            position += mBufferSize;
+            position += buffer_size_;
         }
-        size_t readPointer = static_cast<size_t>(position);
-        for (int i = 0; i < blockSize; i++)
+        size_t read_position = static_cast<size_t>(position);
+        for (int i = 0; i < block_size; i++)
         {
-            mBuffer[readPointer] *= data[i];
-            readPointer += 1;
-            readPointer = readPointer & mBufferSizeMinOne;
+            buffer_[read_position] *= data[i];
+            read_position += 1;
+            read_position = read_position & buffer_size_minus_one_;
         }
     }
 
     template <typename T>
-    inline T CircularBuffer<T>::pullSample()
+    inline void
+    CircularBuffer<T>::modulate_delay_block_double(const double *const data, const int delay, const int block_size)
     {
-        mReadPointer += 1;
-        mReadPointer = mReadPointer & mBufferSizeMinOne;
-        return mBuffer[mReadPointer];
-    }
-
-    template <typename T>
-    inline void CircularBuffer<T>::pullBlock(T *const data, const int blockSize)
-    {
-        for (int i = 0; i < blockSize; i++)
+        int position = (static_cast<int>(write_position_) - delay);
+        if (position < 0)
         {
-            mReadPointer += 1;
-            mReadPointer = mReadPointer & mBufferSizeMinOne;
-            data[i] = mBuffer[mReadPointer];
+            position += buffer_size_;
         }
-    }
-
-    template <typename T>
-    inline void CircularBuffer<T>::pullBlockAdd(T *const data, const int blockSize)
-    {
-        for (int i = 0; i < blockSize; i++)
+        size_t read_position = static_cast<size_t>(position);
+        for (int i = 0; i < block_size; i++)
         {
-            mReadPointer += 1;
-            mReadPointer = mReadPointer & mBufferSizeMinOne;
-            data[i] += mBuffer[mReadPointer];
+            buffer_[read_position] *= data[i];
+            read_position += 1;
+            read_position = read_position & buffer_size_minus_one_;
         }
     }
 
     template <typename T>
-    inline size_t CircularBuffer<T>::getWriteReadDistance()
+    inline T CircularBuffer<T>::pull_sample()
     {
-        return mWritePointer >= mReadPointer ? mWritePointer - mReadPointer
-                                             : mBufferSize - mReadPointer + mWritePointer;
+        read_position_ += 1;
+        read_position_ = read_position_ & buffer_size_minus_one_;
+        return buffer_[read_position_];
+    }
+
+    template <typename T>
+    inline void CircularBuffer<T>::pull_block(T *const data, const int block_size)
+    {
+        for (int i = 0; i < block_size; i++)
+        {
+            read_position_ += 1;
+            read_position_ = read_position_ & buffer_size_minus_one_;
+            data[i] = buffer_[read_position_];
+        }
+    }
+
+    template <typename T>
+    inline void CircularBuffer<T>::pull_block_add(T *const data, const int block_size)
+    {
+        for (int i = 0; i < block_size; i++)
+        {
+            read_position_ += 1;
+            read_position_ = read_position_ & buffer_size_minus_one_;
+            data[i] += buffer_[read_position_];
+        }
+    }
+
+    template <typename T>
+    inline size_t CircularBuffer<T>::get_write_read_distance()
+    {
+        return write_position_ >= read_position_ ? write_position_ - read_position_
+                                                 : buffer_size_ - read_position_ + write_position_;
     }
 
 }

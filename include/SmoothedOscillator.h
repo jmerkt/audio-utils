@@ -21,7 +21,11 @@ namespace audio_utils
     class SmoothedOscillator
     {
     public:
-        SmoothedOscillator(const double samplerate, const double freq, const double phase, const double gain, const double smoothingTimeMs);
+        SmoothedOscillator(const double samplerate,
+                           const double freq,
+                           const double phase,
+                           const double gain,
+                           const double smoothingTimeMs);
         ~SmoothedOscillator() = default;
 
         void init(const double samplerate, const double smoothingTimeMs);
@@ -53,7 +57,8 @@ namespace audio_utils
         SmoothedFloat<double> mFrequency;
     };
 
-    SmoothedOscillator::SmoothedOscillator(const double samplerate, const double freq, const double phase, const double gain, const double smoothingTimeMs)
+    SmoothedOscillator::SmoothedOscillator(
+        const double samplerate, const double freq, const double phase, const double gain, const double smoothingTimeMs)
     {
         init(samplerate, smoothingTimeMs);
         setFrequency(freq);

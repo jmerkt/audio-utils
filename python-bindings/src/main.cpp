@@ -3,8 +3,8 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include "../../include/SmoothedFloat.h"
-#include "../../include/SmoothedOscillator.h"
+#include "../../include/smoothed_float.h"
+#include "../../include/smoothed_oscillator.h"
 
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)

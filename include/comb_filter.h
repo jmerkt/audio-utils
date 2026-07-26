@@ -4,15 +4,15 @@
  This file is part of the audio-utils library.
  Copyright (C) the audio-utils developers.
 
- See LICENSE.txt for  more info.
+ See LICENSE.txt for more info.
 
  ==============================================================================
 */
 
 #pragma once
 
-#include "CircularBuffer.h"
-#include "Utils.h"
+#include "circular_buffer.h"
+#include "utils.h"
 
 namespace audio_utils
 {

@@ -4,15 +4,15 @@
  This file is part of the audio-utils library.
  Copyright (C) the audio-utils developers.
 
- See LICENSE.txt for  more info.
+ See LICENSE.txt for more info.
 
  ==============================================================================
 */
 
 #pragma once
 
-#include "SmoothedFloat.h"
-#include "Utils.h"
+#include "smoothed_float.h"
+#include "utils.h"
 #include <cmath>
 
 namespace audio_utils

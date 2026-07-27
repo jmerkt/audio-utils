@@ -12,11 +12,21 @@
 #pragma once
 #include <cmath>
 #include <cstddef>
+#include <stdexcept>
 #include <vector>
 
 namespace audio_utils
 {
 
+    /*
+     * A counted ring buffer that can represent every occupancy from empty to
+     * completely full. Sequential pulls consume samples. Delay reads only
+     * inspect the zero-initialized history and do not change the occupancy.
+     *
+     * Pushing into a full buffer overwrites its oldest sample. This policy
+     * keeps delay-line users current; queue users can check
+     * get_free_sample_count() before pushing when data loss is unacceptable.
+     */
     template <typename T>
     class CircularBuffer
     {
@@ -24,7 +34,17 @@ namespace audio_utils
         CircularBuffer(std::size_t buffer_size = 128) { change_size(buffer_size); };
         ~CircularBuffer() = default;
         void change_size(std::size_t buffer_size);
-        std::size_t get_buffer_size() { return buffer_size_; };
+        std::size_t get_buffer_size() const noexcept { return buffer_size_; };
+        std::size_t get_available_sample_count() const noexcept { return sample_count_; };
+        std::size_t get_free_sample_count() const noexcept { return buffer_size_ - sample_count_; };
+        bool is_empty() const noexcept { return sample_count_ == 0; };
+        bool is_full() const noexcept { return sample_count_ == buffer_size_; };
+        void clear() noexcept
+        {
+            read_position_ = write_position_;
+            sample_count_ = 0;
+        };
+
         void push_sample(const T value);
         void push_block(const T *const data, const int block_size);
         T pull_sample();
@@ -39,8 +59,6 @@ namespace audio_utils
         {
             return std::pow(2, std::ceil(std::log(size) / std::log(2)));
         };
-        std::size_t get_write_read_distance();
-        inline void reset_read_pointer() { read_position_ = write_position_; };
 
     protected:
         std::vector<T> buffer_;
@@ -48,16 +66,23 @@ namespace audio_utils
         std::size_t buffer_size_minus_one_{0};
         std::size_t write_position_{0};
         std::size_t read_position_{0};
+        std::size_t sample_count_{0};
     };
 
     template <typename T>
     inline void CircularBuffer<T>::change_size(std::size_t buffer_size)
     {
+        if (buffer_size == 0)
+        {
+            throw std::invalid_argument("CircularBuffer size must be positive");
+        }
+
         buffer_size_ = next_power_of_two(buffer_size);
         buffer_size_minus_one_ = buffer_size_ - 1;
-        buffer_.resize(buffer_size_, static_cast<T>(0.));
+        buffer_.assign(buffer_size_, static_cast<T>(0.));
         write_position_ = 0;
         read_position_ = 0;
+        sample_count_ = 0;
     }
 
     template <typename T>
@@ -66,16 +91,31 @@ namespace audio_utils
         write_position_ += 1;
         write_position_ = write_position_ & buffer_size_minus_one_;
         buffer_[write_position_] = value;
+
+        if (is_full())
+        {
+            // Delay lines need the newest history, so a full buffer explicitly
+            // discards its oldest sample.
+            read_position_ += 1;
+            read_position_ = read_position_ & buffer_size_minus_one_;
+        }
+        else
+        {
+            ++sample_count_;
+        }
     }
 
     template <typename T>
     inline void CircularBuffer<T>::push_block(const T *const data, const int block_size)
     {
+        if (block_size < 0 || (data == nullptr && block_size > 0))
+        {
+            throw std::invalid_argument("CircularBuffer input block is invalid");
+        }
+
         for (int i = 0; i < block_size; i++)
         {
-            write_position_ += 1;
-            write_position_ = write_position_ & buffer_size_minus_one_;
-            buffer_[write_position_] = data[i];
+            push_sample(data[i]);
         }
     }
 
@@ -182,38 +222,57 @@ namespace audio_utils
     template <typename T>
     inline T CircularBuffer<T>::pull_sample()
     {
+        if (is_empty())
+        {
+            throw std::underflow_error("Cannot pull a sample from an empty CircularBuffer");
+        }
+
         read_position_ += 1;
         read_position_ = read_position_ & buffer_size_minus_one_;
+        --sample_count_;
         return buffer_[read_position_];
     }
 
     template <typename T>
     inline void CircularBuffer<T>::pull_block(T *const data, const int block_size)
     {
+        if (block_size < 0 || (data == nullptr && block_size > 0))
+        {
+            throw std::invalid_argument("CircularBuffer output block is invalid");
+        }
+        if (static_cast<std::size_t>(block_size) > sample_count_)
+        {
+            throw std::underflow_error("CircularBuffer does not contain enough samples for the requested block");
+        }
+
         for (int i = 0; i < block_size; i++)
         {
             read_position_ += 1;
             read_position_ = read_position_ & buffer_size_minus_one_;
             data[i] = buffer_[read_position_];
         }
+        sample_count_ -= static_cast<std::size_t>(block_size);
     }
 
     template <typename T>
     inline void CircularBuffer<T>::pull_block_add(T *const data, const int block_size)
     {
+        if (block_size < 0 || (data == nullptr && block_size > 0))
+        {
+            throw std::invalid_argument("CircularBuffer output block is invalid");
+        }
+        if (static_cast<std::size_t>(block_size) > sample_count_)
+        {
+            throw std::underflow_error("CircularBuffer does not contain enough samples for the requested block");
+        }
+
         for (int i = 0; i < block_size; i++)
         {
             read_position_ += 1;
             read_position_ = read_position_ & buffer_size_minus_one_;
             data[i] += buffer_[read_position_];
         }
-    }
-
-    template <typename T>
-    inline std::size_t CircularBuffer<T>::get_write_read_distance()
-    {
-        return write_position_ >= read_position_ ? write_position_ - read_position_
-                                                 : buffer_size_ - read_position_ + write_position_;
+        sample_count_ -= static_cast<std::size_t>(block_size);
     }
 
 }

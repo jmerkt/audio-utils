@@ -1,10 +1,10 @@
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
 #include <pybind11/complex.h>
 #include <pybind11/numpy.h>
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 
-#include "../../include/SmoothedFloat.h"
-#include "../../include/SmoothedOscillator.h"
+#include "../../include/smoothed_float.h"
+#include "../../include/smoothed_oscillator.h"
 
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)
@@ -12,9 +12,9 @@
 namespace py = pybind11;
 using namespace audio_utils;
 
-PYBIND11_MODULE(audioutils, m)
+PYBIND11_MODULE(audioutils, module)
 {
-    m.doc() = R"pbdoc(
+    module.doc() = R"pbdoc(
         Pybind11 example plugin
         -----------------------
 
@@ -25,27 +25,27 @@ PYBIND11_MODULE(audioutils, m)
 
     )pbdoc";
 
-    py::class_<SmoothedFloat<double>>(m, "SmoothedFloat")
+    py::class_<SmoothedFloat<double>>(module, "SmoothedFloat")
         .def(py::init<>())
         .def("init", &SmoothedFloat<double>::init)
-        .def("setTargetValue", &SmoothedFloat<double>::setTargetValue)
-        .def("setSmoothingTime", &SmoothedFloat<double>::setSmoothingTime)
-        .def("getNextValue", &SmoothedFloat<double>::getNextValue)
-        .def("getNextBlock", &SmoothedFloat<double>::Python_getNextBlock)
-        .def("getCurrentValue", &SmoothedFloat<double>::getCurrentValue);
+        .def("set_target_value", &SmoothedFloat<double>::set_target_value)
+        .def("set_smoothing_time", &SmoothedFloat<double>::set_smoothing_time)
+        .def("get_next_value", &SmoothedFloat<double>::get_next_value)
+        .def("get_next_block", &SmoothedFloat<double>::python_get_next_block)
+        .def("get_current_value", &SmoothedFloat<double>::get_current_value);
 
-    py::class_<SmoothedOscillator>(m, "SmoothedOscillator")
+    py::class_<SmoothedOscillator>(module, "SmoothedOscillator")
         .def(py::init<const double &, const double &, const double &, const double &, const double &>())
         .def("init", &SmoothedOscillator::init)
-        .def("setFrequency", &SmoothedOscillator::setFrequency)
-        .def("setGain", &SmoothedOscillator::setGain)
-        .def("getGain", &SmoothedOscillator::getGain)
-        .def("processSample", &SmoothedOscillator::processSample)
-        .def("processBlock", &SmoothedOscillator::Python_processBlock);
+        .def("set_frequency", &SmoothedOscillator::set_frequency)
+        .def("set_gain", &SmoothedOscillator::set_gain)
+        .def("get_gain", &SmoothedOscillator::get_gain)
+        .def("process_sample", &SmoothedOscillator::process_sample)
+        .def("process_block", &SmoothedOscillator::python_process_block);
 
 #ifdef VERSION_INFO
-    m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
+    module.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
 #else
-    m.attr("__version__") = "dev";
+    module.attr("__version__") = "dev";
 #endif
 }
